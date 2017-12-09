@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/select.h>
-#include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -60,27 +58,17 @@ int main(int argc, char** argv) {
         print_usage();
     
     // create socket
-    puts("creating socket");
     int fd;
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 500000;
-
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket creation failed");
         exit(1);
     }
-    FD_SET(fd, &readfds);
-    
     struct sockaddr_in servaddr;
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(port);
     servaddr.sin_addr.s_addr = inet_addr(host);
 
     // connect socket
-    puts("connecting socket");
     if (connect(fd, (struct sockaddr*) &servaddr, sizeof(servaddr)) < 0) {
         perror("Socket connection error");
         exit(1);
@@ -88,14 +76,12 @@ int main(int argc, char** argv) {
 
     // handle server overloaded message
     char from_server[100];
-    select(fd+1, &readfds, NULL, NULL, &tv);
-    if (FD_ISSET(fd, &readfds)) {
-        if (recv(fd, from_server, 20, 0) <= 0) {
+
+        if (recv(fd, from_server, 20, MSG_DONTWAIT) > 0) {
             puts("server overloaded. try again later.");
             return 0;
         }
-    }
-
+    
     printf("Ready to start game? (y/n): ");
     fflush(stdout);
 
@@ -163,7 +149,7 @@ int main(int argc, char** argv) {
         char* tosend = (char*) malloc(2 * sizeof(char));
         tosend[0] = 1;
         tosend[1] = input;
-        send(fd, tosend, 2, 0);
+        send(fd, tosend, 2, MSG_NOSIGNAL);
     }
 
 

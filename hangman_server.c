@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <assert.h>
+#include <signal.h>
 
 #define MAX_CONNECTIONS 3
 int num_connections = 0;
@@ -218,6 +219,8 @@ int main(int argc, char** argv) {
     // ------------------------------------------------------------------------
     puts("Setting up server...");
     // ------------------------------------------------------------------------
+    // ignore SIGPIPE
+    signal(SIGPIPE, SIG_IGN);
     int server_fd;
     // create socket
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
