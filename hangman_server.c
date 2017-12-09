@@ -99,18 +99,29 @@ void* connection_handler(void* desc) {
         int num_incorrect = 0;                  // used to index incorrect array
 
         // main game loop
-        while (num_correct != wordlen || num_incorrect != 6) {
+        while (1) {
+            if(num_correct == wordlen || num_incorrect == 6)
+                break;
+            printf(" ------- num correct:   %d ----------\n", num_correct);
+            printf(" ------- num incorrect: %d ----------\n", num_incorrect);
+            printf(" ------- wordlen:       %d ----------\n", wordlen);
 
             // send game control packet to client to update game state
             char* game_state = (char*) malloc(18 * sizeof(char));
             uint8_t control_flag = 0;
             sprintf(game_state, "%c%c%c%s%s", control_flag, wordlen, num_incorrect, to_guess, incorrect_guesses);
-            if(send(fd, game_state, strlen(game_state)-1, 0) == -1) {
+
+            int game_state_len = 3;
+            game_state_len += wordlen;
+            game_state_len += num_incorrect;
+
+            if(send(fd, game_state, game_state_len, 0) == -1) {
                 perror("send failed");
                 break;
             }
            
             // receive message from client
+            puts("receiving message from client");
             char* client_msg = (char*) malloc(3 * sizeof(char));    // msg length, data, \0
             if (recv(fd, client_msg, length, 0) == 0)
                 break;
@@ -121,6 +132,7 @@ void* connection_handler(void* desc) {
             // parse guess into lowercase
             // 65 - 90: A-Z; 97 - 122: a-z
             // out of range
+            puts("parsing client message");
             if (client_data < 65 || client_data > 122 || (client_data > 90 && client_data < 97))
                 break;
             // uppercase -> convert to lowercase
@@ -152,32 +164,28 @@ void* connection_handler(void* desc) {
         strcpy(message, thewordwas);
         strcat(message, word);
         char* tosend = pack(message);
-        if(send(fd, tosend, strlen(tosend)-1, 0) == -1) {
+        if(send(fd, tosend, strlen(tosend), 0) == -1) {
             perror("send failed");
-            exit(1);
         }
 
         // ran out of guesses
         if (num_incorrect == 6) {
             // send you lose
             tosend = pack(youlose);
-            if(send(fd, tosend, strlen(tosend)-1, 0) == -1) {
+            if(send(fd, tosend, strlen(tosend), 0) == -1) {
                 perror("send failed");
-                exit(1);
             }
         } else {
             // send you win
             tosend = pack(youwin);
-            if(send(fd, tosend, strlen(tosend)-1, 0) == -1) {
+            if(send(fd, tosend, strlen(tosend), 0) == -1) {
                 perror("send failed");
-                exit(1);
             }
         }
         // send game over
         tosend = pack(gameover);
-        if(send(fd, tosend, strlen(tosend)-1, 0) == -1) {
+        if(send(fd, tosend, strlen(tosend), 0) == -1) {
             perror("send failed");
-            exit(1);
         }
 
     } else {
@@ -285,5 +293,6 @@ int main(int argc, char** argv) {
             pthread_mutex_unlock(&mutex);
         }
     }
+    puts("!!!! code should never reach here!!!");
     return 0;
 }

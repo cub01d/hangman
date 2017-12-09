@@ -33,9 +33,17 @@ void parse_control(char* fromserver, char* word, char* incorrect_guesses) {
     incorrect_guesses[numincorrect] = 0;
 }
 
-char* parse_message(char* fromserver) {
+char* parse_message(char* fromserver, char* msg) {
+    uint8_t len = fromserver[0];
     char* string = &fromserver[1];
-    return string;
+    strncpy(msg, string, len);
+    msg[len] = 0;
+
+    fromserver += (len + 1);
+    if (fromserver[0] != 0)
+        return fromserver;
+    else
+        return NULL;
 }
 
 int main(int argc, char** argv) {
@@ -56,7 +64,6 @@ int main(int argc, char** argv) {
     int fd;
     fd_set readfds;
     FD_ZERO(&readfds);
-    FD_SET(fd, &readfds);
     struct timeval tv;
     tv.tv_sec = 0;
     tv.tv_usec = 500000;
@@ -65,6 +72,7 @@ int main(int argc, char** argv) {
         perror("socket creation failed");
         exit(1);
     }
+    FD_SET(fd, &readfds);
     
     struct sockaddr_in servaddr;
     servaddr.sin_family = AF_INET;
@@ -79,7 +87,7 @@ int main(int argc, char** argv) {
     }
 
     // handle server overloaded message
-    char from_server[20];
+    char from_server[100];
     select(fd+1, &readfds, NULL, NULL, &tv);
     if (FD_ISSET(fd, &readfds)) {
         if (recv(fd, from_server, 20, 0) <= 0) {
@@ -92,7 +100,7 @@ int main(int argc, char** argv) {
     fflush(stdout);
 
     char choice[2];
-    fgets(choice, 2, stdin);
+    fgets(choice, 3, stdin);
     if (choice[0] != 'y')
         exit(0);
 
@@ -107,14 +115,20 @@ int main(int argc, char** argv) {
     // starting game!
     while(1) {
         // read game control packet from server    
-        if (recv(fd, from_server, 20, 0) == 0) {
+        int bytes_recvd;
+        if ((bytes_recvd = recv(fd, from_server, 100, 0)) == 0) {
             puts("server unexpectedly closed the connection.");
-            break;
+            exit(1);
         }
 
         // parse server packet
         if (from_server[0] != 0) {
-            puts(parse_message(from_server));
+            char* msg = (char*) calloc(40, sizeof(char));
+            char* next_msg = from_server;
+            while(next_msg) {
+                next_msg = parse_message(next_msg, msg);
+                puts(msg);
+            }
             break;
         } else {
             parse_control(from_server, word, incorrect_guesses);
@@ -127,16 +141,18 @@ int main(int argc, char** argv) {
         fflush(stdout);
         
         // user input loop
-        char input[5];
+        char input;
         int invalid = 1;
 
         while(invalid) {
-            fgets(input, 5, stdin);
-            if (input[0] < 65 || input[0] > 122 || (input[0] > 90 && input[0] < 97) ||
-                    strlen(input) > 1)
+            scanf(" %c", &input);
+            if (input < 65 || input > 122 || (input > 90 && input < 97)) {
                 puts("Error! Please guess one letter.");
-            else if (input[0] > 64 && input[0] < 91) {
-                input[0] += 32;
+                printf("Letter to guess: ");
+                fflush(stdout);
+            }
+            else if (input > 64 && input < 91) {
+                input += 32;
                 break;
             } else {
                 break;
@@ -146,10 +162,10 @@ int main(int argc, char** argv) {
         // send user input to server
         char* tosend = (char*) malloc(2 * sizeof(char));
         tosend[0] = 1;
-        tosend[1] = input[0];
-
+        tosend[1] = input;
         send(fd, tosend, 2, 0);
     }
+
 
     close(fd);
     return 0;
