@@ -1,11 +1,10 @@
-CS176A Computer Networking
-Fall 2017, UCSB
-Kenneth Chan
-Vanessa Mejia
-
 # Hangman game
 
 Multithreaded hangman game with support for up to 3 simultaneous connections.
+Written for UCSB CS176A Computer Networking Fall 2017 by
+- Kenneth Chan
+- Vanessa Mejia
+
 
 ## Compiling and running
 
